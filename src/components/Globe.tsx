@@ -12,6 +12,15 @@ const land = feature(world, world.objects.land as never)
 const borders = mesh(world, world.objects.countries as never, (a, b) => a !== b)
 const graticule = geoGraticule10()
 
+// Deterministic starfield (normalised coordinates).
+const STARS = Array.from({ length: 150 }, (_, i) => {
+  const a = Math.sin(i * 12.9898) * 43758.5453
+  const b = Math.sin(i * 78.233) * 12543.1234
+  const c = Math.sin(i * 39.425) * 9871.3141
+  const f = (n: number) => n - Math.floor(n)
+  return { x: f(a), y: f(b), r: 0.4 + f(c) * 1.1, o: 0.15 + f(a + b) * 0.5, p: f(c * 3) * 6.28 }
+})
+
 export interface LatLon {
   lat: number
   lon: number
@@ -24,6 +33,7 @@ interface Props {
   picking: boolean
   focus?: (LatLon & { key: number }) | null
   selected?: string | null
+  autoRotate?: boolean
   onPick: (p: LatLon) => void
   onSelect: (user: string | null) => void
 }
@@ -44,14 +54,14 @@ function clamp(v: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, v))
 }
 
-export function Globe({ pins, me, draft, picking, focus, selected, onPick, onSelect }: Props) {
+export function Globe({ pins, me, draft, picking, focus, selected, autoRotate = true, onPick, onSelect }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   // Latest props, read by the render loop without re-subscribing.
-  const live = useRef({ pins, me, draft, picking, selected })
+  const live = useRef({ pins, me, draft, picking, selected, autoRotate })
   useEffect(() => {
-    live.current = { pins, me, draft, picking, selected }
+    live.current = { pins, me, draft, picking, selected, autoRotate }
   })
 
   const rot = useRef({ lambda: -20, phi: -22 })
@@ -149,6 +159,7 @@ export function Globe({ pins, me, draft, picking, focus, selected, onPick, onSel
       } else if (
         !drag.current &&
         !L.picking &&
+        L.autoRotate &&
         !reduceMotion.current &&
         now - lastTouch.current > 2200
       ) {
@@ -166,6 +177,15 @@ export function Globe({ pins, me, draft, picking, focus, selected, onPick, onSel
 
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
       ctx.clearRect(0, 0, w, h)
+
+      // Stars.
+      for (const st of STARS) {
+        const tw = reduceMotion.current ? 1 : 0.7 + 0.3 * Math.sin(now / 900 + st.p)
+        ctx.fillStyle = `rgba(226,236,250,${st.o * tw})`
+        ctx.beginPath()
+        ctx.arc(st.x * w, st.y * h, st.r, 0, Math.PI * 2)
+        ctx.fill()
+      }
 
       // Atmosphere glow.
       const glow = ctx.createRadialGradient(cx, cy, R * 0.96, cx, cy, R * 1.22)
@@ -209,6 +229,16 @@ export function Globe({ pins, me, draft, picking, focus, selected, onPick, onSel
       ctx.strokeStyle = 'rgba(203,219,242,0.38)'
       ctx.lineWidth = 0.8
       ctx.stroke()
+
+      // Lighting: soft highlight top-left, shadow bottom-right.
+      const shade = ctx.createRadialGradient(cx - R * 0.45, cy - R * 0.5, R * 0.05, cx, cy, R * 1.05)
+      shade.addColorStop(0, 'rgba(203,219,242,0.10)')
+      shade.addColorStop(0.55, 'rgba(0,0,0,0)')
+      shade.addColorStop(1, 'rgba(3,8,18,0.5)')
+      ctx.beginPath()
+      path({ type: 'Sphere' })
+      ctx.fillStyle = shade
+      ctx.fill()
 
       // Limb.
       ctx.beginPath()
@@ -261,6 +291,15 @@ export function Globe({ pins, me, draft, picking, focus, selected, onPick, onSel
           ctx.strokeStyle = 'rgba(249,250,243,0.9)'
           ctx.lineWidth = 1.2
           ctx.stroke()
+        }
+        if (zoom.current > 1.45 && p.city) {
+          ctx.font = '500 11px "DM Sans", sans-serif'
+          ctx.textBaseline = 'middle'
+          ctx.lineWidth = 3
+          ctx.strokeStyle = 'rgba(10,22,38,0.85)'
+          ctx.strokeText(p.city, x + r + 6, y)
+          ctx.fillStyle = '#e3ecf9'
+          ctx.fillText(p.city, x + r + 6, y)
         }
         nextHits.push({ user: p.user, x, y, r: Math.max(r + 4, 12) })
       })

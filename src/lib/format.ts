@@ -25,3 +25,20 @@ export function formatUsdcFull(raw: bigint): string {
 export function utf8Length(s: string): number {
   return new TextEncoder().encode(s).length
 }
+
+/** "just now", "5m ago", "3h ago", "2d ago" from a unix-seconds timestamp. */
+export function timeAgo(unixSeconds: number, nowMs: number = Date.now()): string {
+  const s = Math.max(0, Math.floor(nowMs / 1000 - unixSeconds))
+  if (s < 60) return 'just now'
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`
+  return `${Math.floor(s / 86400)}d ago`
+}
+
+/** Share of `part` in `total` as a percent string with up to 2 decimals. */
+export function formatShare(part: bigint, total: bigint): string {
+  if (total <= 0n) return '0%'
+  const bps = Number((part * 1_000_000n) / total) / 10_000
+  if (bps > 0 && bps < 0.01) return '<0.01%'
+  return `${bps.toFixed(2)}%`
+}

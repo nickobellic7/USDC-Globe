@@ -6,6 +6,12 @@ Built with [Arc Studio](https://studio.arc.io)
 
 Live app: https://nikobel7-app-c6c09b51-9e80-46a6-9dc1-ef0373ffc992.static.hf.space
 
+## Features
+
+- Drag, scroll, or use arrow keys to turn the globe; pause the rotation or jump to your own pin.
+- Pin size reflects USDC held, with the pinned wallets' share of USDC supply on Arc Testnet.
+- Search and sort the list of pinned wallets, and copy a link that opens straight to a pin.
+
 ## Tech stack
 
 - React, Vite, TypeScript, Tailwind CSS
